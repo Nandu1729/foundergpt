@@ -23,6 +23,7 @@ ADK dev tools, e.g. from the foundergpt/ directory:
     adk run .
 """
 
+import asyncio
 import uuid
 
 from google.adk.agents import SequentialAgent
@@ -33,6 +34,7 @@ from agents.research_agent import research_agent
 from agents.competitor_agent import competitor_agent
 from agents.marketing_agent import marketing_agent
 from agents.finance_agent import finance_agent
+
 
 APP_NAME = "foundergpt"
 
@@ -80,36 +82,52 @@ async def run_pipeline(idea: str) -> dict[str, str]:
     It hides ADK's session/runner setup so callers don't need to know
     anything about Sessions or Events.
     """
-    runner = InMemoryRunner(agent=root_agent, app_name=APP_NAME)
+    max_retries = 5
+    backoff = 5
+    
+    for attempt in range(max_retries):
+        try:
+            runner = InMemoryRunner(agent=root_agent, app_name=APP_NAME)
+            user_id = "founder"
+            session_id = str(uuid.uuid4())
 
-    user_id = "founder"
-    session_id = str(uuid.uuid4())
+            await runner.session_service.create_session(
+                app_name=APP_NAME,
+                user_id=user_id,
+                session_id=session_id,
+                state={"startup_idea": idea},
+            )
 
-    await runner.session_service.create_session(
-        app_name=APP_NAME,
-        user_id=user_id,
-        session_id=session_id,
-        state={"startup_idea": idea},
-    )
+            user_message = types.Content(
+                role="user",
+                parts=[types.Part(text=idea)],
+            )
 
-    user_message = types.Content(
-        role="user",
-        parts=[types.Part(text=idea)],
-    )
+            # Drain the event stream. We don't need to inspect events directly —
+            # each agent's final answer is written into session.state via its
+            # output_key, which is the cleanest way to read structured results
+            # back out of an ADK pipeline.
+            async for _event in runner.run_async(
+                user_id=user_id,
+                session_id=session_id,
+                new_message=user_message,
+            ):
+                pass
 
-    # Drain the event stream. We don't need to inspect events directly —
-    # each agent's final answer is written into session.state via its
-    # output_key, which is the cleanest way to read structured results
-    # back out of an ADK pipeline.
-    async for _event in runner.run_async(
-        user_id=user_id,
-        session_id=session_id,
-        new_message=user_message,
-    ):
-        pass
+            session = await runner.session_service.get_session(
+                app_name=APP_NAME, user_id=user_id, session_id=session_id
+            )
 
-    session = await runner.session_service.get_session(
-        app_name=APP_NAME, user_id=user_id, session_id=session_id
-    )
+            return {key: session.state.get(key, "") for key in SECTION_TITLES}
+            
+        except Exception as e:
+            err_msg = str(e)
+            # If rate limited (RESOURCE_EXHAUSTED or 429)
+            if "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg or "rate limit" in err_msg.lower() or "quota" in err_msg.lower():
+                if attempt < max_retries - 1:
+                    wait_time = backoff * (2 ** attempt)
+                    print(f"Gemini API rate limit hit. Retrying in {wait_time}s... (Attempt {attempt+1}/{max_retries})")
+                    await asyncio.sleep(wait_time)
+                    continue
+            raise e
 
-    return {key: session.state.get(key, "") for key in SECTION_TITLES}
