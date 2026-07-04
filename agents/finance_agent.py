@@ -14,7 +14,7 @@ writes "finance_and_pitch".
 
 from google.adk.agents import LlmAgent
 
-MODEL = "gemini-1.5-flash"
+MODEL = "gemini-2.5-flash-lite"
 
 finance_agent = LlmAgent(
     name="finance_agent",

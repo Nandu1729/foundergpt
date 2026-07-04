@@ -16,7 +16,7 @@ their own instruction prompt via {market_research}.
 from google.adk.agents import LlmAgent
 from google.adk.tools import google_search
 
-MODEL = "gemini-1.5-flash"
+MODEL = "gemini-2.5-flash-lite"
 
 research_agent = LlmAgent(
     name="research_agent",
