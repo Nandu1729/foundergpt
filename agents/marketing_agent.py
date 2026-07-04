@@ -14,7 +14,7 @@ Reads {market_research} and {competitor_analysis}, writes
 
 from google.adk.agents import LlmAgent
 
-MODEL = "gemini-2.5-flash"
+MODEL = "gemini-1.5-flash"
 
 marketing_agent = LlmAgent(
     name="marketing_agent",
