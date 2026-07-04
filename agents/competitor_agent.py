@@ -14,7 +14,7 @@ templating) and writes its own output to "competitor_analysis".
 from google.adk.agents import LlmAgent
 from google.adk.tools import google_search
 
-MODEL = "gemini-2.5-flash-lite"
+MODEL = "gemini-3.1-flash-lite"
 
 competitor_agent = LlmAgent(
     name="competitor_agent",
