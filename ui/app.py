@@ -52,10 +52,9 @@ if not os.getenv("GOOGLE_API_KEY"):
         icon="⚠️",
     )
 
-idea = st.text_area(
+idea = st.text_input(
     "Describe your startup idea",
     placeholder="e.g. I want to build an offline UPI reliability product",
-    height=100,
 )
 
 generate_clicked = st.button("Generate Blueprint", type="primary", disabled=not idea.strip())
